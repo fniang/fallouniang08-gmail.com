@@ -1,0 +1,225 @@
+#!/usr/bin/python
+import argparse
+import sys
+from collections import defaultdict
+
+#=========================================================================
+#=========================== TRIE DES ADRESS IP ==========================
+#=========================================================================
+
+def sortedIP(TabIp):
+        #if validIP(TabIp) == True :
+            TabAdres = sorted(TabIp, key=lambda TabIp: tuple(map(int, (TabIp.split(".")) )))
+            return TabAdres
+#=========================================================================
+#========================= REMVOE END LINE FILE ==========================
+#=========================================================================
+def removeEndLine(chaine):
+        Line = chaine
+        Line = Line.replace('\n','')
+        Line = Line.replace('\t','')
+        return   Line
+
+#=========================================================================
+#========================= READ TITLE OF FILE ============================
+#=========================================================================
+def readTitle(fichier):
+    temp_f      = open(fichier)
+    firstLine   = temp_f.readline()
+    firstLine = removeEndLine(firstLine)
+    temp_f.close()
+    return   firstLine
+
+#=========================================================================
+#================= INITIALISATION A N COLONNES VIDES  ====================
+#=========================================================================
+def init_tabVide(n):
+    chaine =""
+    for x in range(n):
+        chaine=chaine+DELIMIT
+    return chaine
+
+
+#=========================================================================
+#=================== LECTURE ET STOCKAGE D'UN FICHIER ====================
+#=========================================================================
+
+def read_fic(fichier):
+    TabAdres ={}
+    with open(fichier, "r") as fic:
+        for line in fic.readlines():
+                delete_line_vide= line.strip(";")
+                line = removeEndLine(delete_line_vide)
+                tabLine = line.split(DELIMIT)
+                TabAdres[tabLine[0]] = line+DELIMIT
+        fic.close()
+    #print(TabAdres)
+    return TabAdres
+
+#=========================================================================
+#=================== VERIFICATION DES IP ====================
+#=========================================================================
+
+def validIP(address):
+    champs = address.split(".")
+    
+    if len(champs) != 4:
+        #print("Error : Longueur adresse invalide")
+        return False
+    for item in champs:
+        if not 0 <= int(item) <= 255:
+            #print("Error : taille ip invalide")
+            return False
+    #print("IP valide")
+    return True
+
+
+#=========================================================================
+#========================== ECRITURE DU FICHIER ==========================
+#=========================================================================
+def write_fic(fic1,fic2,fic3,ficAll,ficOut,ficOutErr):
+        #===== Lecture titres des fichiers
+        title1 = readTitle(fic1)
+        title2 = readTitle(fic2)
+        title3 = readTitle(fic3)
+
+        #===== titres sous forme de tableau
+        tabTle1 = title1.split(DELIMIT)
+        tabTle2 = title2.split(DELIMIT)
+        tabTle3 = title3.split(DELIMIT)
+
+        #==== Stockage nombre de colonnes des fichiers
+        nbCol1 = len(tabTle1)
+        nbCol2 = len(tabTle2)
+        nbCol3 = len(tabTle3)
+
+        #===== Stockage table des fichiers
+        tabH1  = read_fic(fic1)
+        tabH2  = read_fic(fic2)
+        tabH3  = read_fic(fic3)
+
+        #===== Suppression ligne entete dans les tables
+        del tabH1[tabTle1[0]]
+        del tabH2[tabTle2[0]]
+        del tabH3[tabTle3[0]]
+
+        #===== Lecture adresses IP
+        keys1 = tabH1.keys()
+        for i in keys1:
+            validIP(i)
+            
+        keys2 = tabH2.keys()
+        for j in keys2:
+            validIP(j)
+            
+        keys3 = tabH3.keys()
+        for k in keys3:
+            validIP(k)
+        
+        #===== Calcul des intersections et trie entre les adresses IP
+        tabInter123 = sortedIP(tuple(set(keys1).intersection(keys2,keys3)))
+        #===== Calcul des intersections deux a deux excluant les intersections aux 3
+        tabInt12 = sortedIP(set(tuple(set(keys1).intersection(keys2))).difference(tabInter123))
+        tabInt13 = sortedIP(set(tuple(set(keys1).intersection(keys3))).difference(tabInter123))
+        tabInt23 = sortedIP(set(tuple(set(keys2).intersection(keys3))).difference(tabInter123))
+
+        #===== Calcul des differences entre les adresses IP
+        tabDif1     = sortedIP(tuple(set(keys1).difference(keys2,keys3)))
+        tabDif2 = sortedIP(tuple(set(keys2).difference(keys1,keys3)))
+        tabDif3 = sortedIP(tuple(set(keys3).difference(keys1,keys2)))
+        #====== Ligne d entête des fichiers de sortie
+        mytitle = title1+DELIMIT+title2+DELIMIT+title3
+
+        #=========== ECRITURE FICHIER All (INTERSECTIONS 1 2 3)===================
+        #========= Ecriture entête fichier bon
+        ficSortieAll  = open(ficOut, 'w')
+        ficSortieAll.write(mytitle+'\n')
+        #===== Intersection fic1, fic2, fic3 (adresses IP communes aux 3 fichiers)
+        for x in (tabInter123) :
+                myline = tabH1[x]+tabH2[x]+tabH3[x]
+                ficSortieAll.write(myline+'\n')
+        #===== Intersection fic1, fic2
+        for x in (tabInt12):
+                myline = tabH1[x]+tabH2[x]+init_tabVide(nbCol3)
+                ficSortieAll.write(myline+'\n')
+        #===== Intersection fic1, fic3
+        for x in (tabInt13):
+                myline = tabH1[x]+init_tabVide(nbCol2)+tabH3[x]
+                ficSortieAll.write(myline+'\n')
+        #===== Intersection fic2 et fic3
+        for x in (tabInt23):
+                myline = init_tabVide(nbCol1)+tabH2[x]+tabH3[x]
+                ficSortieAll.write(myline+'\n')
+       
+        #================== ECRITURE DIFFERENCES All =============================
+        #===== Stockage difference fic1 et (fic2 ,fic3)
+        for x in (tabDif1):
+                myline = tabH1[x]+init_tabVide(nbCol2)+init_tabVide(nbCol3)
+                ficSortieAll.write(myline+'\n')
+        #===== Stockage difference fic2 et (fic1 ,fic3)
+        for x in (tabDif2):
+                myline = init_tabVide(nbCol1)+tabH2[x]+init_tabVide(nbCol3)
+                ficSortieAll.write(myline+'\n')
+        #===== Stockage difference fic3 et (fic1 ,fic2)
+        for x in (tabDif3):
+                myline = init_tabVide(nbCol1)+init_tabVide(nbCol2)+tabH3[x]
+                ficSortieAll.write(myline+'\n')
+        ficSortieAll.close()
+        #=========== ECRITURE FICHIER BON (INTERSECTIONS 1 2 3)===================
+        #========= Ecriture entête fichier bon
+        ficSortieBon  = open(ficOut, 'w')
+        ficSortieBon.write(mytitle+'\n')
+        #===== Intersection fic1, fic2, fic3 (adresses IP communes aux 3 fichiers)
+        for x in (tabInter123) :
+                myline = tabH1[x]+tabH2[x]+tabH3[x]
+                ficSortieBon.write(myline+'\n')
+        ficSortieBon.close()
+        #============================== ECRITURE FICHIER ERREUR ====================
+        #========= Ecriture entête fichier erreur
+        ficSortieErr  = open(ficOutErr, 'w')
+        ficSortieErr.write(mytitle+'\n')
+        #===== Intersection fic1, fic2
+        for x in (tabInt12):
+                myline = tabH1[x]+tabH2[x]+init_tabVide(nbCol3)
+                ficSortieErr.write(myline+'\n')
+        #===== Intersection fic1, fic3
+        for x in (tabInt13):
+                myline = tabH1[x]+init_tabVide(nbCol2)+tabH3[x]
+                ficSortieErr.write(myline+'\n')
+        #===== Intersection fic2 et fic3
+        for x in (tabInt23):
+                myline = init_tabVide(nbCol1)+tabH2[x]+tabH3[x]
+                ficSortieErr.write(myline+'\n')
+        #================== ECRITURE DIFFERENCES =============================
+        #===== Stockage difference fic1 et (fic2 ,fic3)
+        for x in (tabDif1):
+                myline = tabH1[x]+init_tabVide(nbCol2)+init_tabVide(nbCol3)
+                ficSortieErr.write(myline+'\n')
+        #===== Stockage difference fic2 et (fic1 ,fic3)
+        for x in (tabDif2):
+                myline = init_tabVide(nbCol1)+tabH2[x]+init_tabVide(nbCol3)
+                ficSortieErr.write(myline+'\n')
+        #===== Stockage difference fic3 et (fic1 ,fic2)
+        for x in (tabDif3):
+                myline = init_tabVide(nbCol1)+init_tabVide(nbCol2)+tabH3[x]
+                ficSortieErr.write(myline+'\n')
+        ficSortieErr.close()
+
+#=========================================================================
+#========================= FONCTION PRINCIPALE ===========================  
+#=========================================================================  
+if __name__=='__main__':
+    file1 = "cerbere.csv"
+    file2 ="rtg.csv"
+    file3 = "ipm.csv"
+    ficAll = "OutputAll_cerbere_rtg_ipm.csv"
+    ficOutCom="Ouput_cerbere_rtg_ipm.csv"
+    ficOutErreur="Ouput_Erreur.csv"
+    DELIMIT =';'
+   
+    print('-----Stats----------')
+    print ("=== DEBUT TRAITEMENT ===")
+   
+    write_fic(file1,file2,file3,ficAll,ficOutCom,ficOutErreur)
+    print('-----Stats----------')
+    print ("=== FIN TRAITEMENT ===")
